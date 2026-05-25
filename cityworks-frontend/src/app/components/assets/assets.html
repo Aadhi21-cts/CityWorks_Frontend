@@ -1,0 +1,84 @@
+<div class="content-area">
+  <div class="page-header">
+    <h4>Assets</h4>
+    <button class="btn btn-primary btn-sm" *ngIf="auth.hasRole('ADMIN')" (click)="openModal()">
+      <i class="bi bi-plus-lg me-1"></i> Add Asset
+    </button>
+  </div>
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+  <div *ngIf="loading" class="text-center py-5"><div class="spinner-border text-amber"></div></div>
+  <div class="card" *ngIf="!loading">
+    <div class="card-body p-0">
+      <div *ngIf="items.length===0" class="text-center py-4 text-muted">No assets found.</div>
+      <table class="table table-hover mb-0" *ngIf="items.length>0">
+        <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Location</th><th>Condition</th><th>Status</th><th>Installed</th><th *ngIf="auth.hasRole('ADMIN')">Actions</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let a of items">
+            <td>#{{ a.assetId }}</td><td>{{ a.name }}</td><td>{{ a.type }}</td><td>{{ a.location }}</td>
+            <td><span [class]="conditionClass(a.condition)">{{ a.condition }}</span></td>
+            <td>{{ a.status }}</td><td>{{ a.installedAt }}</td>
+            <td *ngIf="auth.hasRole('ADMIN')">
+              <button class="btn btn-sm btn-outline-secondary me-1" (click)="openEdit(a)"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" (click)="delete(a.assetId)"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Asset Modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Asset</h5><button class="btn-close" (click)="showModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Name</label><input type="text" class="form-control" [(ngModel)]="form.name"></div>
+      <div class="mb-3">
+        <label class="form-label">Type</label>
+        <select class="form-select" [(ngModel)]="form.type"><option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option></select>
+      </div>
+      <div class="mb-3"><label class="form-label">Location</label><input type="text" class="form-control" [(ngModel)]="form.location"></div>
+      <div class="row">
+        <div class="col mb-3">
+          <label class="form-label">Condition</label>
+          <select class="form-select" [(ngModel)]="form.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+        </div>
+        <div class="col mb-3">
+          <label class="form-label">Status</label>
+          <select class="form-select" [(ngModel)]="form.status"><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+        </div>
+      </div>
+      <div class="mb-3"><label class="form-label">Installed At</label><input type="date" class="form-control" [(ngModel)]="form.installedAt"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="submit()" [disabled]="saving">
+        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Save
+      </button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Edit Asset Modal (condition + status only) -->
+<div class="modal d-block" tabindex="-1" *ngIf="showEditModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Edit Asset #{{ editForm.assetId }}</h5><button class="btn-close" (click)="showEditModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">Condition</label>
+        <select class="form-select" [(ngModel)]="editForm.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" [(ngModel)]="editForm.status"><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showEditModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="saveEdit()" [disabled]="savingEdit">
+        <span *ngIf="savingEdit" class="spinner-border spinner-border-sm me-1"></span>Save
+      </button>
+    </div>
+  </div></div>
+</div>
