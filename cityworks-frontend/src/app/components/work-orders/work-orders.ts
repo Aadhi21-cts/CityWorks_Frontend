@@ -5,8 +5,24 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { WorkOrderService } from '../../services/work-order.service';
 import { EvidenceService } from '../../services/evidence.service';
+import { ToastService } from '../../services/toast.service';
 
 const BASE = 'http://localhost:7171/api';
+
+function extractError(err: any): string {
+  const msg = err?.error?.message || err?.error?.error || err?.message;
+
+  if (typeof msg === 'string') {
+    return msg;
+  }
+
+  if (msg && typeof msg === 'object') {
+    const firstValue = Object.values(msg)[0];
+    return String(firstValue);
+  }
+
+  return 'An unexpected error occurred.';
+}
 
 @Component({
   selector: 'app-work-orders',
@@ -17,25 +33,20 @@ const BASE = 'http://localhost:7171/api';
 export class WorkOrders implements OnInit {
   items: any[] = [];
   loading = true;
-  error = '';
   saving = false;
 
-  // Assign worker modal (for NEW status)
   showAssignModal = false;
-  assignForm = { orderId: 0, workerId: 0, status: 'IN_PROGRESS' };
+  assignForm = { orderId: 0, workerId: 0, status: 'ASSIGNED' };
   workers: any[] = [];
-  assignStatuses = ['IN_PROGRESS', 'COMPLETED'];
+  assignStatuses = ['ASSIGNED', 'IN_PROGRESS'];
 
-  // Edit worker modal (change assigned worker)
   showEditWorkerModal = false;
   editWorkerForm = { orderId: 0, workerId: 0 };
 
-  // Expanded completion evidence per work order
   expandedEvidenceOrderId: number | null = null;
   evidenceByOrder: Record<number, any[]> = {};
   evidenceLoading = false;
 
-  // Status dropdown inline (for IN_PROGRESS)
   showInlineStatusForm: Record<number, boolean> = {};
   inlineStatusForm: Record<number, string> = {};
 
@@ -44,13 +55,12 @@ export class WorkOrders implements OnInit {
     private svc: WorkOrderService,
     private evidenceSvc: EvidenceService,
     private http: HttpClient,
+    private toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.load();
-    if (this.auth.hasRole('SUPERVISOR', 'ADMIN')) {
-      this.loadWorkers();
-    }
+    if (this.auth.hasRole('SUPERVISOR', 'ADMIN')) this.loadWorkers();
   }
 
   load() {
@@ -58,112 +68,65 @@ export class WorkOrders implements OnInit {
     const obs = this.auth.hasRole('WORKER')
       ? this.svc.getByWorker(this.auth.getUserId()!)
       : this.svc.getAll();
-
     obs.subscribe({
-      next: (r) => {
-        this.items = r.data ?? r;
-        this.loading = false;
-      },
-      error: () => {
-        this.error = 'Failed to load work orders.';
-        this.loading = false;
-      },
+      next: (r) => { this.items = r.data ?? r; this.loading = false; },
+      error: (err) => { this.toast.error(extractError(err)); this.loading = false; },
     });
   }
 
   loadWorkers() {
     this.http.get<any>(`${BASE}/auth/users/workers/active`).subscribe({
-      next: (r) => {
-        this.workers = r.data ?? r;
-      },
-      error: () => {},
+      next: (r) => { this.workers = r.data ?? r; },
+      error: (err) => { this.toast.error(extractError(err)); },
     });
   }
 
-  // Open assign modal for NEW work orders
   openAssign(item: any) {
-    this.assignForm = { orderId: item.workOrderId, workerId: item.workerId, status: 'IN_PROGRESS' };
+    this.assignForm = { orderId: item.workOrderId, workerId: 0, status: 'ASSIGNED' };
     this.showAssignModal = true;
   }
 
   assign() {
+    if (!this.assignForm.workerId) { this.toast.warning('Please select a worker.'); return; }
     this.saving = true;
-    console.log('Assigning worker', this.assignForm.orderId, this.assignForm.workerId);
-    this.svc
-      .assignWorker({ orderId: this.assignForm.orderId, workerId: this.assignForm.workerId })
-      .subscribe({
-        next: () => {
-          // Also update status
-          this.svc.updateStatus(this.assignForm.orderId, this.assignForm.status).subscribe({
-            next: () => {
-              this.saving = false;
-              this.showAssignModal = false;
-              this.load();
-            },
-            error: () => {
-              console.log(this.error);
-              this.saving = false;
-              this.showAssignModal = false;
-              this.load();
-            },
-          });
-        },
-        error: () => {
-          console.log(this.error);
-          this.saving = false;
-        },
-      });
+    this.svc.assignWorker({ orderId: this.assignForm.orderId, workerId: this.assignForm.workerId }).subscribe({
+      next: () => {
+        this.svc.updateStatus(this.assignForm.orderId, this.assignForm.status).subscribe({
+          next: () => { this.saving = false; this.showAssignModal = false; this.load(); this.toast.success('Worker assigned successfully.'); },
+          error: (err) => { this.saving = false; this.showAssignModal = false; this.load(); this.toast.error(extractError(err)); },
+        });
+      },
+      error: (err) => { this.saving = false; this.toast.error(extractError(err)); },
+    });
   }
 
-  // Open edit worker modal
   openEditWorker(item: any) {
     this.editWorkerForm = { orderId: item.workOrderId, workerId: item.assignedWorkerId ?? 0 };
     this.showEditWorkerModal = true;
   }
 
   editWorker() {
+    if (!this.editWorkerForm.workerId) { this.toast.warning('Please select a worker.'); return; }
     this.saving = true;
-    this.svc
-      .assignWorker({
-        orderId: this.editWorkerForm.orderId,
-        workerId: this.editWorkerForm.workerId,
-      })
-      .subscribe({
-        next: () => {
-          this.saving = false;
-          this.showEditWorkerModal = false;
-          this.load();
-        },
-        error: () => {
-          this.saving = false;
-        },
-      });
+    this.svc.assignWorker({ orderId: this.editWorkerForm.orderId, workerId: this.editWorkerForm.workerId }).subscribe({
+      next: () => { this.saving = false; this.showEditWorkerModal = false; this.load(); this.toast.success('Worker updated successfully.'); },
+      error: (err) => { this.saving = false; this.toast.error(extractError(err)); },
+    });
   }
 
-  // Toggle inline status panel for IN_PROGRESS orders
   toggleInlineStatus(item: any) {
     const id = item.workOrderId;
-    if (this.showInlineStatusForm[id]) {
-      this.showInlineStatusForm[id] = false;
-    } else {
-      this.showInlineStatusForm[id] = true;
-      this.inlineStatusForm[id] = item.status;
-      // Load evidence for this order
-      this.loadEvidenceForOrder(id);
-    }
+    if (this.showInlineStatusForm[id]) { this.showInlineStatusForm[id] = false; return; }
+    this.showInlineStatusForm[id] = true;
+    this.inlineStatusForm[id] = item.status;
+    this.loadEvidenceForOrder(id);
   }
 
   loadEvidenceForOrder(orderId: number) {
     this.evidenceLoading = true;
     this.evidenceSvc.getByWorkOrderId(orderId).subscribe({
-      next: (r) => {
-        const all = r.data ?? r;
-        this.evidenceByOrder[orderId] = all;
-        this.evidenceLoading = false;
-      },
-      error: () => {
-        this.evidenceLoading = false;
-      },
+      next: (r) => { this.evidenceByOrder[orderId] = r.data ?? r; this.evidenceLoading = false; },
+      error: (err) => { this.evidenceLoading = false; this.toast.error(extractError(err)); },
     });
   }
 
@@ -177,47 +140,29 @@ export class WorkOrders implements OnInit {
     const id = item.workOrderId;
     const newStatus = this.inlineStatusForm[id];
     if (newStatus === 'COMPLETED' && !this.canCompleteOrder(id)) {
-      alert(
-        'All completion evidence for this work order must be COMPLETED before marking it as Completed.',
-      );
+      this.toast.warning('All completion evidence must be VERIFIED before marking this work order as Completed.');
       return;
     }
     this.saving = true;
     this.svc.updateStatus(id, newStatus).subscribe({
-      next: () => {
-        this.saving = false;
-        this.showInlineStatusForm[id] = false;
-        this.load();
-      },
-      error: () => {
-        this.saving = false;
-      },
+      next: () => { this.saving = false; this.showInlineStatusForm[id] = false; this.load(); this.toast.success('Status updated successfully.'); },
+      error: (err) => { this.saving = false; this.toast.error(extractError(err)); },
     });
   }
 
-  // Toggle evidence expansion (non-popup, inline)
   toggleEvidence(orderId: number) {
-    if (this.expandedEvidenceOrderId === orderId) {
-      this.expandedEvidenceOrderId = null;
-    } else {
-      this.expandedEvidenceOrderId = orderId;
-      this.loadEvidenceForOrder(orderId);
-    }
+    if (this.expandedEvidenceOrderId === orderId) { this.expandedEvidenceOrderId = null; return; }
+    this.expandedEvidenceOrderId = orderId;
+    this.loadEvidenceForOrder(orderId);
   }
 
   workerName(id: number): string {
-    const w = this.workers.find((x) => x.userId === id);
+    const w = this.workers.find(x => x.userId === id);
     return w ? `${w.name} (#${w.userId})` : `#${id}`;
   }
 
   statusClass(s: string) {
-    const m: Record<string, string> = {
-      OPEN: 'badge-open',
-      NEW: 'badge-pending',
-      IN_PROGRESS: 'badge-progress',
-      COMPLETED: 'badge-completed',
-      ASSIGNED: 'badge-assigned',
-    };
+    const m: Record<string, string> = { OPEN:'badge-open', NEW:'badge-pending', CREATED:'badge-pending', IN_PROGRESS:'badge-progress', COMPLETED:'badge-completed', ASSIGNED:'badge-assigned', ON_HOLD:'badge-pending', CANCELLED:'badge-rejected' };
     return m[s] ?? 'badge-open';
   }
 }

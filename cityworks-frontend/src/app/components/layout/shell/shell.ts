@@ -1,10 +1,12 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Sidebar } from '../sidebar/sidebar';
+import { ToastComponent } from '../../toast/toast';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, Sidebar],
+  standalone: true,
+  imports: [RouterOutlet, Sidebar, ToastComponent],
   templateUrl: './shell.html',
   styleUrl: './shell.css'
 })

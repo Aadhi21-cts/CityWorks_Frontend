@@ -5,7 +5,6 @@
       <i class="bi bi-plus-lg me-1"></i> Add Asset
     </button>
   </div>
-  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
   <div *ngIf="loading" class="text-center py-5"><div class="spinner-border text-amber"></div></div>
   <div class="card" *ngIf="!loading">
     <div class="card-body p-0">
@@ -33,12 +32,24 @@
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Add Asset</h5><button class="btn-close" (click)="showModal=false"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">Name</label><input type="text" class="form-control" [(ngModel)]="form.name"></div>
       <div class="mb-3">
-        <label class="form-label">Type</label>
-        <select class="form-select" [(ngModel)]="form.type"><option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option></select>
+        <label class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" [(ngModel)]="form.name"
+          [class.is-invalid]="formSubmitted && !form.name.trim()" placeholder="Asset name">
+        <div class="invalid-feedback">Name is required.</div>
       </div>
-      <div class="mb-3"><label class="form-label">Location</label><input type="text" class="form-control" [(ngModel)]="form.location"></div>
+      <div class="mb-3">
+        <label class="form-label">Type <span class="text-danger">*</span></label>
+        <select class="form-select" [(ngModel)]="form.type">
+          <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Location <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" [(ngModel)]="form.location"
+          [class.is-invalid]="formSubmitted && !form.location.trim()" placeholder="e.g. Main Street Block A">
+        <div class="invalid-feedback">Location is required.</div>
+      </div>
       <div class="row">
         <div class="col mb-3">
           <label class="form-label">Condition</label>
@@ -49,7 +60,12 @@
           <select class="form-select" [(ngModel)]="form.status"><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
         </div>
       </div>
-      <div class="mb-3"><label class="form-label">Installed At</label><input type="date" class="form-control" [(ngModel)]="form.installedAt"></div>
+      <div class="mb-3">
+        <label class="form-label">Installed At <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" [(ngModel)]="form.installedAt"
+          [class.is-invalid]="formSubmitted && !form.installedAt">
+        <div class="invalid-feedback">Installation date is required.</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" (click)="showModal=false">Cancel</button>
@@ -60,7 +76,7 @@
   </div></div>
 </div>
 
-<!-- Edit Asset Modal (condition + status only) -->
+<!-- Edit Asset Modal -->
 <div class="modal d-block" tabindex="-1" *ngIf="showEditModal" style="background:rgba(0,0,0,0.5)">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Edit Asset #{{ editForm.assetId }}</h5><button class="btn-close" (click)="showEditModal=false"></button></div>

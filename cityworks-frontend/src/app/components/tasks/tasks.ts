@@ -5,8 +5,24 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { TaskService } from '../../services/task.service';
 import { WorkOrderService } from '../../services/work-order.service';
+import { ToastService } from '../../services/toast.service';
 
 const BASE = 'http://localhost:7171/api/auth';
+
+function extractError(err: any): string {
+  const msg = err?.error?.message || err?.error?.error || err?.message;
+
+  if (typeof msg === 'string') {
+    return msg;
+  }
+
+  if (msg && typeof msg === 'object') {
+    const firstValue = Object.values(msg)[0];
+    return String(firstValue);
+  }
+
+  return 'An unexpected error occurred.';
+}
 
 @Component({
   selector: 'app-tasks',
@@ -20,12 +36,10 @@ export class Tasks implements OnInit {
   showModal = false; showStatusModal = false;
   form = { workOrderId: 0, description: '', assignedTo: 0, dueDate: '' };
   statusForm = { taskId: 0, status: 'IN_PROGRESS' };
-  saving = false;
+  saving = false; formSubmitted = false;
   statuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'BLOCKED', 'CANCELLED'];
   workers: any[] = [];
   workOrders: any[] = [];
-
-  // Worker: expanded tasks per work order
   expandedWorkOrderId: number | null = null;
   tasksByWorkOrder: Record<number, any[]> = {};
 
@@ -34,14 +48,12 @@ export class Tasks implements OnInit {
     private svc: TaskService,
     private workOrderSvc: WorkOrderService,
     private http: HttpClient,
+    private toast: ToastService,
   ) {}
 
   ngOnInit() {
     this.load();
-    if (this.auth.hasRole('SUPERVISOR')) {
-      this.loadWorkers();
-      this.loadWorkOrders();
-    }
+    if (this.auth.hasRole('SUPERVISOR')) { this.loadWorkers(); this.loadWorkOrders(); }
   }
 
   load() {
@@ -50,48 +62,58 @@ export class Tasks implements OnInit {
       next: (r) => {
         let all = r.data ?? r;
         if (this.auth.hasRole('WORKER')) all = all.filter((t: any) => t.assignedTo === this.auth.getUserId());
-        this.items = all;
-        this.loading = false;
+        this.items = all; this.loading = false;
       },
-      error: () => { this.error = 'Failed to load tasks.'; this.loading = false; },
+      error: (err) => { this.toast.error(extractError(err)); this.loading = false; },
     });
   }
 
   loadWorkers() {
     this.http.get<any>(`${BASE}/users/workers/active`).subscribe({
       next: (r) => { this.workers = r.data ?? r; },
-      error: () => {},
+      error: (err) => { this.toast.error(extractError(err)); },
     });
   }
 
   loadWorkOrders() {
     this.workOrderSvc.getAll().subscribe({
-      next: (r) => { this.workOrders = (r.data ?? r).filter((w: any) => w.status !== 'COMPLETED'); },
+      next: (r) => { this.workOrders = (r.data ?? r).filter((w: any) => w.status !== 'COMPLETED' && w.status !== 'CANCELLED'); },
       error: () => {},
     });
   }
 
-  openModal() { this.form = { workOrderId: 0, description: '', assignedTo: 0, dueDate: '' }; this.showModal = true; }
+  openModal() { this.form = { workOrderId: 0, description: '', assignedTo: 0, dueDate: '' }; this.formSubmitted = false; this.showModal = true; }
   openStatus(item: any) { this.statusForm = { taskId: item.taskId, status: item.status }; this.showStatusModal = true; }
 
+  isFormValid(): boolean {
+    return this.form.workOrderId > 0 && this.form.description.trim().length >= 5 && this.form.assignedTo > 0 && !!this.form.dueDate;
+  }
+
   submit() {
+    this.formSubmitted = true;
+    if (!this.isFormValid()) { this.toast.warning('Please fill in all required fields.'); return; }
     this.saving = true;
     this.svc.create(this.form).subscribe({
-      next: () => { this.saving = false; this.showModal = false; this.load(); },
-      error: () => { this.saving = false; },
+      next: () => { this.saving = false; this.showModal = false; this.load(); this.toast.success('Task created successfully.'); },
+      error: (err) => { this.saving = false; this.toast.error(extractError(err)); },
     });
   }
 
   updateStatus() {
     this.saving = true;
     this.svc.update(this.statusForm.taskId, { status: this.statusForm.status }).subscribe({
-      next: () => { this.saving = false; this.showStatusModal = false; this.load(); },
-      error: () => { this.saving = false; },
+      next: () => { this.saving = false; this.showStatusModal = false; this.load(); this.toast.success('Task status updated.'); },
+      error: (err) => { this.saving = false; this.toast.error(extractError(err)); },
     });
   }
 
   delete(id: number) {
-    if (confirm('Delete this task?')) this.svc.delete(id).subscribe({ next: () => this.load() });
+    if (confirm('Delete this task?')) {
+      this.svc.delete(id).subscribe({
+        next: () => { this.load(); this.toast.success('Task deleted.'); },
+        error: (err) => this.toast.error(extractError(err))
+      });
+    }
   }
 
   workerName(id: number): string {
@@ -99,14 +121,12 @@ export class Tasks implements OnInit {
     return w ? `${w.name} (#${w.userId})` : `#${id}`;
   }
 
-  // Worker: click work order to expand its tasks
   toggleWorkOrderTasks(workOrderId: number) {
     if (this.expandedWorkOrderId === workOrderId) { this.expandedWorkOrderId = null; return; }
     this.expandedWorkOrderId = workOrderId;
     this.tasksByWorkOrder[workOrderId] = this.items.filter(t => t.workOrderId === workOrderId);
   }
 
-  // Unique work order IDs for the worker's task list
   get uniqueWorkOrderIds(): number[] {
     return [...new Set(this.items.map(t => t.workOrderId))];
   }

@@ -417,52 +417,34 @@
       </div>
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label">Full Name</label
-          ><input
-            type="text"
-            class="form-control"
-            [(ngModel)]="userForm.name"
-            placeholder="John Doe"
-          />
+          <label class="form-label">Full Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" [(ngModel)]="userForm.name"
+            [class.is-invalid]="userFormSubmitted && !userForm.name.trim()" placeholder="John Doe"/>
+          <div class="invalid-feedback">Full name is required.</div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Email</label
-          ><input
-            type="email"
-            class="form-control"
-            [(ngModel)]="userForm.email"
-            placeholder="john@cityworks.gov"
-          />
+          <label class="form-label">Email <span class="text-danger">*</span></label>
+          <input type="email" class="form-control" [(ngModel)]="userForm.email"
+            [class.is-invalid]="userFormSubmitted && !userForm.email.trim()" placeholder="john@cityworks.gov"/>
+          <div class="invalid-feedback">Email is required.</div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Username</label
-          ><input
-            type="text"
-            class="form-control"
-            [(ngModel)]="userForm.username"
-            placeholder="username"
-          />
+          <label class="form-label">Username <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" [(ngModel)]="userForm.username"
+            [class.is-invalid]="userFormSubmitted && !userForm.username.trim()" placeholder="username"/>
+          <div class="invalid-feedback">Username is required.</div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Password</label>
+          <label class="form-label">Password <span class="text-danger">*</span></label>
           <div class="input-group">
-            <input
-              [type]="showCreatePassword ? 'text' : 'password'"
-              class="form-control"
+            <input [type]="showCreatePassword ? 'text' : 'password'" class="form-control"
               [(ngModel)]="userForm.password"
-            />
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              (click)="showCreatePassword = !showCreatePassword"
-            >
-              <i
-                class="bi"
-                [class.bi-eye]="!showCreatePassword"
-                [class.bi-eye-slash]="showCreatePassword"
-              ></i>
+              [class.is-invalid]="userFormSubmitted && !userForm.password"/>
+            <button type="button" class="btn btn-outline-secondary" (click)="showCreatePassword=!showCreatePassword">
+              <i class="bi" [class.bi-eye]="!showCreatePassword" [class.bi-eye-slash]="showCreatePassword"></i>
             </button>
           </div>
+          <div class="invalid-feedback">Password is required.</div>
         </div>
         <div class="mb-3">
           <label class="form-label">Role</label>

@@ -9,8 +9,24 @@ import { ServiceRequestService } from '../../services/service-request.service';
 import { WorkOrderService } from '../../services/work-order.service';
 import { AssetService } from '../../services/asset.service';
 import { TaskService } from '../../services/task.service';
+import { ToastService } from '../../services/toast.service';
 
 const BASE = 'http://localhost:7171/api/auth';
+
+function extractError(err: any): string {
+  const msg = err?.error?.message || err?.error?.error || err?.message;
+
+  if (typeof msg === 'string') {
+    return msg;
+  }
+
+  if (msg && typeof msg === 'object') {
+    const firstValue = Object.values(msg)[0];
+    return String(firstValue);
+  }
+
+  return 'An unexpected error occurred.';
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -21,40 +37,26 @@ const BASE = 'http://localhost:7171/api/auth';
 })
 export class Dashboard implements OnInit {
   loading = true;
-
-  // ADMIN
   totalUsers = 0; totalAssets = 0; pendingRequests = 0;
   users: any[] = [];
   showCreateUserModal = false; savingUser = false; showCreatePassword = false;
   userForm = { name: '', email: '', username: '', password: '', role: 'WORKER' };
+  userFormSubmitted = false;
   roles = ['CITIZEN', 'WORKER', 'SUPERVISOR', 'ADMIN', 'AUDITOR'];
   togglingUserId: number | null = null;
-
-  // Edit user
   showEditUserModal = false; savingEditUser = false;
   editUserForm = { id: 0, name: '', email: '', username: '', role: '' };
-
-  // SUPERVISOR
   totalNewRequests = 0; totalPendingRequests = 0; totalPendingWorkOrders = 0; totalPendingTasks = 0;
   recentRequests: any[] = [];
-
-  // WORKER
   totalTasks = 0; totalCompletedTasks = 0; totalPendingTasksWorker = 0;
   myTasks: any[] = []; myWorkOrders: any[] = [];
-
-  // CITIZEN
   totalRequests = 0; myRequests: any[] = [];
-
-  // AUDITOR
   recentAuditLogs: any[] = []; totalAuditLogs = 0;
 
   constructor(
-    public auth: AuthService,
-    private requestSvc: ServiceRequestService,
-    private workOrderSvc: WorkOrderService,
-    private assetSvc: AssetService,
-    private taskSvc: TaskService,
-    private http: HttpClient,
+    public auth: AuthService, private requestSvc: ServiceRequestService,
+    private workOrderSvc: WorkOrderService, private assetSvc: AssetService,
+    private taskSvc: TaskService, private http: HttpClient, private toast: ToastService,
   ) {}
 
   ngOnInit() {
@@ -74,10 +76,10 @@ export class Dashboard implements OnInit {
         this.users = users.data ?? users;
         this.totalUsers = this.users.length;
         this.totalAssets = (assets.data ?? assets).length;
-        this.pendingRequests = (requests.data ?? requests).filter((x: any) => x.status === 'PENDING').length;
+        this.pendingRequests = (requests.data ?? requests).filter((x: any) => x.status === 'PENDING' || x.status === 'SUBMITTED').length;
         this.loading = false;
       },
-      error: () => { this.loading = false; },
+      error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });
   }
 
@@ -90,22 +92,28 @@ export class Dashboard implements OnInit {
         const idx = this.users.findIndex(u => u.userId === user.userId);
         if (idx !== -1) { this.users[idx] = { ...this.users[idx], status: updated.status ?? newStatus }; this.users = [...this.users]; }
         this.togglingUserId = null;
+        this.toast.success(`User ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully.`);
       },
-      error: () => { this.togglingUserId = null; },
+      error: (err) => { this.togglingUserId = null; this.toast.error(extractError(err)); },
     });
   }
 
   openCreateUser() {
     this.userForm = { name: '', email: '', username: '', password: '', role: 'WORKER' };
-    this.showCreatePassword = false;
-    this.showCreateUserModal = true;
+    this.userFormSubmitted = false; this.showCreatePassword = false; this.showCreateUserModal = true;
+  }
+
+  isUserFormValid(): boolean {
+    return !!(this.userForm.name.trim() && this.userForm.email.trim() && this.userForm.username.trim() && this.userForm.password);
   }
 
   createUser() {
+    this.userFormSubmitted = true;
+    if (!this.isUserFormValid()) { this.toast.warning('Please fill in all required fields.'); return; }
     this.savingUser = true;
     this.http.post<any>(`${BASE}/admin/register`, this.userForm).subscribe({
-      next: () => { this.savingUser = false; this.showCreateUserModal = false; this.loadAdminDashboard(); },
-      error: () => { this.savingUser = false; },
+      next: () => { this.savingUser = false; this.showCreateUserModal = false; this.loadAdminDashboard(); this.toast.success('User created successfully.'); },
+      error: (err) => { this.savingUser = false; this.toast.error(extractError(err)); },
     });
   }
 
@@ -115,15 +123,16 @@ export class Dashboard implements OnInit {
   }
 
   saveEditUser() {
+    if (!this.editUserForm.name.trim() || !this.editUserForm.email.trim()) { this.toast.warning('Name and email are required.'); return; }
     this.savingEditUser = true;
     this.http.put<any>(`${BASE}/users/${this.editUserForm.id}`, this.editUserForm).subscribe({
       next: (r) => {
         const updated = r.data ?? r;
         const idx = this.users.findIndex(u => u.userId === this.editUserForm.id);
         if (idx !== -1) { this.users[idx] = { ...this.users[idx], ...updated }; this.users = [...this.users]; }
-        this.savingEditUser = false; this.showEditUserModal = false;
+        this.savingEditUser = false; this.showEditUserModal = false; this.toast.success('User updated successfully.');
       },
-      error: () => { this.savingEditUser = false; },
+      error: (err) => { this.savingEditUser = false; this.toast.error(extractError(err)); },
     });
   }
 
@@ -132,12 +141,11 @@ export class Dashboard implements OnInit {
     this.requestSvc.getAll().subscribe({
       next: (r) => {
         const d = r.data ?? r;
-        this.totalNewRequests = d.filter((x: any) => x.status === 'PENDING').length;
-        this.totalPendingRequests = d.filter((x: any) => ['PENDING','APPROVED'].includes(x.status)).length;
-        this.recentRequests = d.slice(0, 5);
-        this.loading = false;
+        this.totalNewRequests = d.filter((x: any) => ['PENDING','SUBMITTED'].includes(x.status)).length;
+        this.totalPendingRequests = d.filter((x: any) => ['PENDING','SUBMITTED','APPROVED'].includes(x.status)).length;
+        this.recentRequests = d.slice(0, 5); this.loading = false;
       },
-      error: () => (this.loading = false),
+      error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });
     this.workOrderSvc.getAll().subscribe({ next: (r) => { this.totalPendingWorkOrders = (r.data ?? r).filter((x: any) => x.status !== 'COMPLETED').length; } });
     this.taskSvc.getAll().subscribe({ next: (r) => { this.totalPendingTasks = (r.data ?? r).filter((x: any) => x.status !== 'COMPLETED').length; } });
@@ -149,12 +157,11 @@ export class Dashboard implements OnInit {
     this.taskSvc.getAll().subscribe({
       next: (r) => {
         const d = (r.data ?? r).filter((t: any) => t.assignedTo === workerId);
-        this.totalTasks = d.length;
-        this.totalCompletedTasks = d.filter((t: any) => t.status === 'COMPLETED').length;
+        this.totalTasks = d.length; this.totalCompletedTasks = d.filter((t: any) => t.status === 'COMPLETED').length;
         this.totalPendingTasksWorker = d.filter((t: any) => t.status !== 'COMPLETED').length;
         this.myTasks = d.slice(0, 5); this.loading = false;
       },
-      error: () => (this.loading = false),
+      error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });
     this.workOrderSvc.getByWorker(workerId).subscribe({ next: (r) => { this.myWorkOrders = (r.data ?? r).slice(0, 5); } });
   }
@@ -165,10 +172,10 @@ export class Dashboard implements OnInit {
       next: (r) => {
         const d = r.data ?? r;
         this.totalRequests = d.length;
-        this.pendingRequests = d.filter((x: any) => x.status === 'PENDING').length;
+        this.pendingRequests = d.filter((x: any) => ['PENDING','SUBMITTED'].includes(x.status)).length;
         this.myRequests = d.slice(0, 5); this.loading = false;
       },
-      error: () => (this.loading = false),
+      error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });
   }
 
@@ -176,12 +183,12 @@ export class Dashboard implements OnInit {
     this.loading = true;
     this.http.get<any>(`${BASE}/audit-logs/all`).subscribe({
       next: (r) => { const d = r.data ?? r; this.totalAuditLogs = d.length; this.recentAuditLogs = d.slice(0, 10); this.loading = false; },
-      error: () => (this.loading = false),
+      error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });
   }
 
   statusClass(status: string): string {
-    const map: Record<string, string> = { PENDING:'badge-pending', APPROVED:'badge-approved', REJECTED:'badge-rejected', IN_PROGRESS:'badge-progress', COMPLETED:'badge-completed', NEW:'badge-pending' };
+    const map: Record<string, string> = { PENDING:'badge-pending', SUBMITTED:'badge-pending', APPROVED:'badge-approved', REJECTED:'badge-rejected', IN_PROGRESS:'badge-progress', COMPLETED:'badge-completed', NEW:'badge-pending' };
     return map[status] ?? 'badge-pending';
   }
 }

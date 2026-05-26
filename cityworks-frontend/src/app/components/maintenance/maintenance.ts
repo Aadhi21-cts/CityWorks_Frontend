@@ -5,8 +5,24 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { MaintenanceService } from '../../services/maintenance.service';
 import { AssetService } from '../../services/asset.service';
+import { ToastService } from '../../services/toast.service';
 
 const BASE_AUTH = 'http://localhost:7171/api/auth';
+
+function extractError(err: any): string {
+  const msg = err?.error?.message || err?.error?.error || err?.message;
+
+  if (typeof msg === 'string') {
+    return msg;
+  }
+
+  if (msg && typeof msg === 'object') {
+    const firstValue = Object.values(msg)[0];
+    return String(firstValue);
+  }
+
+  return 'An unexpected error occurred.';
+}
 
 @Component({
   selector: 'app-maintenance',
@@ -17,22 +33,14 @@ const BASE_AUTH = 'http://localhost:7171/api/auth';
 export class Maintenance implements OnInit {
   items: any[] = [];
   loading = true; error = '';
-  showModal = false; saving = false;
+  showModal = false; saving = false; formSubmitted = false;
   form = { assetId: 0, taskDescription: '', performedBy: '', performedAt: '', cost: 0, status: 'SCHEDULED' };
   statuses = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE', 'CANCELLED'];
-  assets: any[] = [];
-  workers: any[] = [];
-
-  // Edit modal
+  assets: any[] = []; workers: any[] = [];
   showEditModal = false; savingEdit = false;
   editForm = { maintainId: 0, assetId: 0, taskDescription: '', performedBy: '', performedAt: '', cost: 0, status: 'SCHEDULED' };
 
-  constructor(
-    public auth: AuthService,
-    private svc: MaintenanceService,
-    private assetSvc: AssetService,
-    private http: HttpClient
-  ) {}
+  constructor(public auth: AuthService, private svc: MaintenanceService, private assetSvc: AssetService, private http: HttpClient, private toast: ToastService) {}
 
   ngOnInit() {
     this.load();
@@ -46,7 +54,7 @@ export class Maintenance implements OnInit {
     this.loading = true;
     this.svc.getAll().subscribe({
       next: r => { this.items = r.data ?? r; this.loading = false; },
-      error: () => { this.error = 'Failed to load maintenance records.'; this.loading = false; }
+      error: err => { this.toast.error(extractError(err)); this.loading = false; }
     });
   }
 
@@ -57,14 +65,20 @@ export class Maintenance implements OnInit {
 
   openModal() {
     this.form = { assetId: 0, taskDescription: '', performedBy: '', performedAt: '', cost: 0, status: 'SCHEDULED' };
-    this.showModal = true;
+    this.formSubmitted = false; this.showModal = true;
+  }
+
+  isFormValid(): boolean {
+    return this.form.assetId > 0 && !!this.form.taskDescription.trim() && !!this.form.performedBy && !!this.form.performedAt && this.form.cost >= 0;
   }
 
   submit() {
+    this.formSubmitted = true;
+    if (!this.isFormValid()) { this.toast.warning('Please fill in all required fields.'); return; }
     this.saving = true;
     this.svc.create(this.form).subscribe({
-      next: () => { this.saving = false; this.showModal = false; this.load(); },
-      error: () => { this.saving = false; }
+      next: () => { this.saving = false; this.showModal = false; this.load(); this.toast.success('Maintenance record created successfully.'); },
+      error: err => { this.saving = false; this.toast.error(extractError(err)); }
     });
   }
 
@@ -74,15 +88,23 @@ export class Maintenance implements OnInit {
   }
 
   saveEdit() {
+    if (!this.editForm.taskDescription.trim() || !this.editForm.performedBy || !this.editForm.performedAt) {
+      this.toast.warning('Please fill in all required fields.'); return;
+    }
     this.savingEdit = true;
     this.svc.update(this.editForm.maintainId, this.editForm).subscribe({
-      next: () => { this.savingEdit = false; this.showEditModal = false; this.load(); },
-      error: () => { this.savingEdit = false; }
+      next: () => { this.savingEdit = false; this.showEditModal = false; this.load(); this.toast.success('Maintenance record updated successfully.'); },
+      error: err => { this.savingEdit = false; this.toast.error(extractError(err)); }
     });
   }
 
   delete(id: number) {
-    if (confirm('Delete this record?')) this.svc.delete(id).subscribe({ next: () => this.load() });
+    if (confirm('Delete this record?')) {
+      this.svc.delete(id).subscribe({
+        next: () => { this.load(); this.toast.success('Maintenance record deleted.'); },
+        error: err => this.toast.error(extractError(err))
+      });
+    }
   }
 
   statusClass(s: string) {
