@@ -1,0 +1,122 @@
+<div class="content-area">
+  <div class="page-header">
+    <h4>Tasks</h4>
+    <button class="btn btn-primary btn-sm" *ngIf="auth.hasRole('SUPERVISOR')" (click)="openModal()">
+      <i class="bi bi-plus-lg me-1"></i> New Task
+    </button>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+  <div *ngIf="loading" class="text-center py-5"><div class="spinner-border text-amber"></div></div>
+
+  <!-- WORKER VIEW: grouped by work order -->
+  <ng-container *ngIf="!loading && auth.hasRole('WORKER')">
+    <div *ngIf="items.length===0" class="text-center py-5 text-muted">No tasks assigned.</div>
+    <div *ngFor="let wid of uniqueWorkOrderIds" class="card mb-2">
+      <div class="card-header d-flex align-items-center justify-content-between"
+           style="cursor:pointer;user-select:none;" (click)="toggleWorkOrderTasks(wid)">
+        <span class="fw-600"><i class="bi bi-clipboard2-check me-2 text-amber"></i>Work Order #{{ wid }}</span>
+        <i class="bi" [class.bi-chevron-down]="expandedWorkOrderId!==wid" [class.bi-chevron-up]="expandedWorkOrderId===wid"></i>
+      </div>
+      <div *ngIf="expandedWorkOrderId===wid" class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Task ID</th><th>Description</th><th>Due Date</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of tasksByWorkOrder[wid]">
+              <td>#{{ t.taskId }}</td><td>{{ t.description }}</td>
+              <td>{{ t.dueDate | slice:0:10 }}</td>
+              <td><span [class]="statusClass(t.status)">{{ t.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ADMIN VIEW: read + delete only, no status button -->
+  <div class="card" *ngIf="!loading && auth.hasRole('ADMIN')">
+    <div class="card-body p-0">
+      <div *ngIf="items.length===0" class="text-center py-4 text-muted">No tasks found.</div>
+      <table class="table table-hover mb-0" *ngIf="items.length>0">
+        <thead><tr><th>ID</th><th>Work Order</th><th>Description</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let t of items">
+            <td>#{{ t.taskId }}</td><td>#{{ t.workOrderId }}</td><td>{{ t.description }}</td>
+            <td>{{ t.assignedTo }}</td><td>{{ t.dueDate | slice:0:10 }}</td>
+            <td><span [class]="statusClass(t.status)">{{ t.status }}</span></td>
+            <td><button class="btn btn-sm btn-outline-danger" (click)="delete(t.taskId)"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SUPERVISOR VIEW: full management -->
+  <div class="card" *ngIf="!loading && auth.hasRole('SUPERVISOR')">
+    <div class="card-body p-0">
+      <div *ngIf="items.length===0" class="text-center py-4 text-muted">No tasks found.</div>
+      <table class="table table-hover mb-0" *ngIf="items.length>0">
+        <thead><tr><th>ID</th><th>Work Order</th><th>Description</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let t of items">
+            <td>#{{ t.taskId }}</td><td>#{{ t.workOrderId }}</td><td>{{ t.description }}</td>
+            <td>{{ workerName(t.assignedTo) }}</td><td>{{ t.dueDate | slice:0:10 }}</td>
+            <td><span [class]="statusClass(t.status)">{{ t.status }}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary me-1" (click)="openStatus(t)">Status</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Task Modal (SUPERVISOR only) -->
+<div class="modal d-block" tabindex="-1" *ngIf="showModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">New Task</h5><button class="btn-close" (click)="showModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">Work Order</label>
+        <select class="form-select" [(ngModel)]="form.workOrderId">
+          <option [value]="0" disabled>-- Select Work Order --</option>
+          <option *ngFor="let w of workOrders" [value]="w.workOrderId">#{{ w.workOrderId }} — Asset #{{ w.assetId }} ({{ w.status }})</option>
+        </select>
+      </div>
+      <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control" [(ngModel)]="form.description" rows="2"></textarea></div>
+      <div class="mb-3">
+        <label class="form-label">Assign To (Worker)</label>
+        <select class="form-select" [(ngModel)]="form.assignedTo">
+          <option [value]="0" disabled>-- Select Worker --</option>
+          <option *ngFor="let w of workers" [value]="w.userId">{{ w.name }} (#{{ w.userId }})</option>
+        </select>
+      </div>
+      <div class="mb-3"><label class="form-label">Due Date</label><input type="datetime-local" class="form-control" [(ngModel)]="form.dueDate"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="submit()" [disabled]="saving">
+        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Create
+      </button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Status Modal (SUPERVISOR only) -->
+<div class="modal d-block" tabindex="-1" *ngIf="showStatusModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Update Task Status</h5><button class="btn-close" (click)="showStatusModal=false"></button></div>
+    <div class="modal-body">
+      <select class="form-select" [(ngModel)]="statusForm.status">
+        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showStatusModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="updateStatus()" [disabled]="saving">
+        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Update
+      </button>
+    </div>
+  </div></div>
+</div>

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Angular build cache and output
+dist/
+.angular/
+
+# Environment files
+src/environments/environment.prod.ts
+
+# IDE / Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

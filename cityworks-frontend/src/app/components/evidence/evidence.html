@@ -1,0 +1,164 @@
+<div class="content-area">
+  <div class="page-header">
+    <h4>Completion Evidence</h4>
+    <button class="btn btn-primary btn-sm" *ngIf="auth.hasRole('WORKER')" (click)="openUploadModal()">
+      <i class="bi bi-upload me-1"></i> Upload Evidence
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="text-center py-5"><div class="spinner-border text-amber"></div></div>
+
+  <!-- ═══ WORKER VIEW ═══ -->
+  <ng-container *ngIf="!loading && auth.hasRole('WORKER')">
+    <div class="row g-3 mb-4">
+      <div class="col-md-4"><div class="stat-card"><div class="stat-label">Total Evidence Uploaded</div><div class="stat-value">{{ totalEvidence }}</div><div class="stat-sub text-muted">by me</div></div></div>
+      <div class="col-md-4"><div class="stat-card"><div class="stat-label">Pending Uploads</div><div class="stat-value" style="color:#856404">{{ pendingUploads }}</div><div class="stat-sub text-warning">tasks without evidence</div></div></div>
+      <div class="col-md-4"><div class="stat-card"><div class="stat-label">Verified</div><div class="stat-value text-success">{{ totalEvidence - pendingUploads }}</div><div class="stat-sub text-muted">completed evidences</div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">My Completion Evidence</div>
+      <div class="card-body p-0">
+        <div *ngIf="myEvidenceItems.length===0" class="text-center py-4 text-muted">No evidence uploaded yet.</div>
+        <table class="table table-hover mb-0" *ngIf="myEvidenceItems.length>0">
+          <thead><tr><th>ID</th><th>Task</th><th>File</th><th>Uploaded At</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let e of myEvidenceItems">
+              <td>#{{ e.evidenceId }}</td>
+              <td>{{ taskDesc(e.taskId) }}</td>
+              <td><a [href]="e.fileURI" target="_blank" class="text-amber">{{ e.fileURI | slice:0:40 }}…</a></td>
+              <td>{{ e.uploadedAt | slice:0:10 }}</td>
+              <td><span [class]="statusClass(e.status)">{{ e.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ═══ SUPERVISOR VIEW ═══ -->
+  <ng-container *ngIf="!loading && auth.hasRole('SUPERVISOR')">
+    <div *ngIf="supervisorWorkOrders.length===0" class="text-center py-5 text-muted">No work orders in ASSIGNED / IN_PROGRESS / ON_HOLD status.</div>
+    <div *ngFor="let wo of supervisorWorkOrders" class="card mb-2">
+      <div class="card-header d-flex align-items-center justify-content-between"
+           style="cursor:pointer;user-select:none;" (click)="toggleOrderDetail(wo.workOrderId)">
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-600"><i class="bi bi-clipboard2-check me-2 text-amber"></i>Work Order #{{ wo.workOrderId }}</span>
+          <span [class]="woStatusClass(wo.status)" style="font-size:0.75rem">{{ wo.status }}</span>
+          <span class="text-muted" style="font-size:0.8rem">Asset #{{ wo.assetId }}</span>
+        </div>
+        <i class="bi" [class.bi-chevron-down]="expandedOrderId!==wo.workOrderId" [class.bi-chevron-up]="expandedOrderId===wo.workOrderId"></i>
+      </div>
+
+      <div *ngIf="expandedOrderId===wo.workOrderId" class="card-body p-0">
+        <div *ngIf="loadingOrderDetail[wo.workOrderId]" class="text-center py-3"><div class="spinner-border spinner-border-sm text-amber"></div></div>
+        <ng-container *ngIf="!loadingOrderDetail[wo.workOrderId]">
+          <div *ngIf="(orderTasks[wo.workOrderId]?.length ?? 0)===0" class="text-muted p-3" style="font-size:0.85rem">No tasks for this work order.</div>
+          <ng-container *ngFor="let task of orderTasks[wo.workOrderId]">
+            <div class="px-3 py-2" style="background:#f8f9fa;border-top:1px solid #dee2e6">
+              <strong style="font-size:0.85rem">Task #{{ task.taskId }}</strong> — {{ task.description }}
+              <span [class]="'ms-2 ' + statusClass(task.status)" style="font-size:0.75rem">{{ task.status }}</span>
+            </div>
+            <div *ngIf="getEvidenceForTask(wo.workOrderId, task.taskId).length===0" class="px-4 py-2 text-muted" style="font-size:0.8rem">No evidence uploaded for this task.</div>
+            <table class="table table-sm mb-0" *ngIf="getEvidenceForTask(wo.workOrderId, task.taskId).length>0">
+              <thead><tr><th class="ps-4">Evidence ID</th><th>Uploaded At</th><th>Status</th><th>View</th><th>Change Status</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let ev of getEvidenceForTask(wo.workOrderId, task.taskId)">
+                  <td class="ps-4">#{{ ev.evidenceId }}</td>
+                  <td>{{ ev.uploadedAt | slice:0:10 }}</td>
+                  <td><span [class]="statusClass(ev.status)">{{ ev.status }}</span></td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="openPreview(ev)">
+                      <i class="bi bi-eye me-1"></i>View
+                    </button>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-1">
+                      <select class="form-select form-select-sm" style="width:auto" [(ngModel)]="evidenceStatusForm[ev.evidenceId]">
+                        <option value="">-- Status --</option>
+                        <option value="VERIFIED">VERIFIED</option>
+                        <option value="REJECTED">REJECTED</option>
+                      </select>
+                      <button class="btn btn-sm btn-primary" (click)="changeEvidenceStatus(ev, wo.workOrderId)"
+                        [disabled]="!evidenceStatusForm[ev.evidenceId] || changingEvidenceId===ev.evidenceId">
+                        <span *ngIf="changingEvidenceId===ev.evidenceId" class="spinner-border spinner-border-sm me-1"></span>Save
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ═══ AUDITOR/ADMIN VIEW ═══ -->
+  <ng-container *ngIf="!loading && !auth.hasRole('WORKER') && !auth.hasRole('SUPERVISOR')">
+    <div class="card">
+      <div class="card-body p-0">
+        <div *ngIf="auditItems.length===0" class="text-center py-4 text-muted">No evidence records found.</div>
+        <table class="table table-hover mb-0" *ngIf="auditItems.length>0">
+          <thead><tr><th>ID</th><th>Task ID</th><th>File URI</th><th>Uploaded At</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let e of auditItems">
+              <td>#{{ e.evidenceId }}</td><td>{{ e.taskId }}</td>
+              <td>{{ e.fileURI | slice:0:50 }}</td>
+              <td>{{ e.uploadedAt | slice:0:10 }}</td>
+              <td><span [class]="statusClass(e.status)">{{ e.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-container>
+</div>
+
+<!-- Worker Upload Modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showUploadModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Upload Evidence</h5><button class="btn-close" (click)="showUploadModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">Task</label>
+        <select class="form-select" [(ngModel)]="uploadForm.taskId">
+          <option [value]="0" disabled>-- Select your Task --</option>
+          <option *ngFor="let t of myTasks" [value]="t.taskId">Task #{{ t.taskId }} — {{ t.description }}</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Upload File</label>
+        <div class="d-flex align-items-center gap-2">
+          <label class="btn btn-outline-secondary btn-sm mb-0" style="cursor:pointer">
+            <i class="bi bi-folder2-open me-1"></i>Choose File
+            <input type="file" style="display:none" (change)="onFileSelected($event)" accept="image/*,application/pdf">
+          </label>
+          <span *ngIf="selectedFileName" class="text-muted" style="font-size:0.85rem">{{ selectedFileName }}</span>
+          <span *ngIf="!selectedFileName" class="text-muted" style="font-size:0.85rem">No file selected</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showUploadModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="submitUpload()" [disabled]="saving || !uploadForm.file || uploadForm.taskId===0">
+        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Upload
+      </button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Supervisor Evidence Preview Modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showPreviewModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title">Evidence #{{ previewEvidence?.evidenceId }}</h5>
+      <button class="btn-close" (click)="closePreview()"></button>
+    </div>
+    <div class="modal-body text-center">
+      <img *ngIf="previewLocalUrl" [src]="previewLocalUrl" class="img-fluid rounded" style="max-height:500px" alt="Evidence">
+      <div *ngIf="!previewLocalUrl" class="text-muted">No preview available.</div>
+      <div class="mt-2 text-muted" style="font-size:0.8rem">Task ID: {{ previewEvidence?.taskId }} | Status: {{ previewEvidence?.status }}</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" (click)="closePreview()">Close</button></div>
+  </div></div>
+</div>

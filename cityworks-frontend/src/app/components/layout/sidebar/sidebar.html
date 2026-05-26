@@ -1,0 +1,61 @@
+<div class="sidebar">
+  <div class="sidebar-brand"><i class="bi bi-buildings-fill me-2 text-amber"></i>Cityworks</div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Main</div>
+    <a routerLink="/dashboard" routerLinkActive="active" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+
+    <!-- CITIZEN -->
+    <ng-container *ngIf="is('CITIZEN')">
+      <div class="sidebar-section-label">My Account</div>
+      <a routerLink="/requests" routerLinkActive="active" class="nav-link"><i class="bi bi-file-text"></i> My Requests</a>
+    </ng-container>
+
+    <!-- SUPERVISOR -->
+    <ng-container *ngIf="is('SUPERVISOR')">
+      <div class="sidebar-section-label">Operations</div>
+      <a routerLink="/requests" routerLinkActive="active" class="nav-link"><i class="bi bi-file-text"></i> Requests</a>
+      <a routerLink="/work-orders" routerLinkActive="active" class="nav-link"><i class="bi bi-clipboard2-check"></i> Work Orders</a>
+      <a routerLink="/tasks" routerLinkActive="active" class="nav-link"><i class="bi bi-list-task"></i> Tasks</a>
+      <a routerLink="/evidence" routerLinkActive="active" class="nav-link"><i class="bi bi-camera"></i> Completion Evidence</a>
+      <div class="sidebar-section-label">Assets</div>
+      <a routerLink="/inspections" routerLinkActive="active" class="nav-link"><i class="bi bi-search"></i> Inspections</a>
+      <a routerLink="/maintenance" routerLinkActive="active" class="nav-link"><i class="bi bi-tools"></i> Maintenance</a>
+    </ng-container>
+
+    <!-- WORKER -->
+    <ng-container *ngIf="is('WORKER')">
+      <div class="sidebar-section-label">My Work</div>
+      <a routerLink="/work-orders" routerLinkActive="active" class="nav-link"><i class="bi bi-clipboard2-check"></i> My Work Orders</a>
+      <a routerLink="/tasks" routerLinkActive="active" class="nav-link"><i class="bi bi-list-task"></i> My Tasks</a>
+      <a routerLink="/evidence" routerLinkActive="active" class="nav-link"><i class="bi bi-camera"></i> Upload Evidence</a>
+    </ng-container>
+
+    <!-- ADMIN -->
+    <ng-container *ngIf="is('ADMIN')">
+      <div class="sidebar-section-label">Operations</div>
+      <a routerLink="/requests" routerLinkActive="active" class="nav-link"><i class="bi bi-file-text"></i> Service Requests</a>
+      <a routerLink="/work-orders" routerLinkActive="active" class="nav-link"><i class="bi bi-clipboard2-check"></i> Work Orders</a>
+      <a routerLink="/tasks" routerLinkActive="active" class="nav-link"><i class="bi bi-list-task"></i> Tasks</a>
+      <div class="sidebar-section-label">Assets</div>
+      <a routerLink="/assets" routerLinkActive="active" class="nav-link"><i class="bi bi-boxes"></i> Assets</a>
+      <a routerLink="/inspections" routerLinkActive="active" class="nav-link"><i class="bi bi-search"></i> Inspections</a>
+      <a routerLink="/maintenance" routerLinkActive="active" class="nav-link"><i class="bi bi-tools"></i> Maintenance</a>
+    </ng-container>
+
+    <!-- AUDITOR -->
+    <ng-container *ngIf="is('AUDITOR')">
+      <div class="sidebar-section-label">Compliance</div>
+      <a routerLink="/audit-logs" routerLinkActive="active" class="nav-link"><i class="bi bi-journal-text"></i> Audit Logs</a>
+      <a routerLink="/reports" routerLinkActive="active" class="nav-link"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+      <a routerLink="/work-orders" routerLinkActive="active" class="nav-link"><i class="bi bi-clipboard2-check"></i> Work Orders</a>
+      <a routerLink="/maintenance" routerLinkActive="active" class="nav-link"><i class="bi bi-tools"></i> Maintenance</a>
+    </ng-container>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-info-name">{{ auth.getUsername() }}</div>
+    <div class="user-info-text">{{ auth.getRole() }}</div>
+    <button class="btn btn-sm btn-outline-secondary mt-2 w-100" (click)="logout()">
+      <i class="bi bi-box-arrow-left me-1"></i> Logout
+    </button>
+  </div>
+</div>

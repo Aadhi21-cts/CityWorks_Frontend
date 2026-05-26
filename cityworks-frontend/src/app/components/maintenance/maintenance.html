@@ -1,0 +1,112 @@
+<div class="content-area">
+  <div class="page-header">
+    <h4>Maintenance Records</h4>
+    <button class="btn btn-primary btn-sm" *ngIf="auth.hasRole('SUPERVISOR')" (click)="openModal()">
+      <i class="bi bi-plus-lg me-1"></i> Add Record
+    </button>
+  </div>
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+  <div *ngIf="loading" class="text-center py-5"><div class="spinner-border text-amber"></div></div>
+  <div class="card" *ngIf="!loading">
+    <div class="card-body p-0">
+      <div *ngIf="items.length===0" class="text-center py-4 text-muted">No maintenance records found.</div>
+      <table class="table table-hover mb-0" *ngIf="items.length>0">
+        <thead>
+          <tr><th>ID</th><th>Asset</th><th>Description</th><th>Performed By</th><th>Date</th><th>Cost</th><th>Status</th>
+            <th *ngIf="auth.hasRole('ADMIN','SUPERVISOR')">Actions</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of items">
+            <td>#{{ m.maintainId }}</td>
+            <td>{{ assetLabel(m.assetId) }}</td>
+            <td>{{ m.taskDescription }}</td>
+            <td>{{ m.performedBy }}</td>
+            <td>{{ m.performedAt }}</td>
+            <td>₹{{ m.cost }}</td>
+            <td><span [class]="statusClass(m.status)">{{ m.status }}</span></td>
+            <td *ngIf="auth.hasRole('ADMIN','SUPERVISOR')">
+              <button class="btn btn-sm btn-outline-secondary me-1" *ngIf="auth.hasRole('SUPERVISOR')" (click)="openEdit(m)"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" (click)="delete(m.maintainId)"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Maintenance Modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Maintenance Record</h5><button class="btn-close" (click)="showModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">Asset</label>
+        <select class="form-select" [(ngModel)]="form.assetId">
+          <option [value]="0" disabled>-- Select an Asset --</option>
+          <option *ngFor="let a of assets" [value]="a.assetId">#{{ a.assetId }} — {{ a.name }} — {{ a.location }}</option>
+        </select>
+      </div>
+      <div class="mb-3"><label class="form-label">Task Description</label><textarea class="form-control" [(ngModel)]="form.taskDescription" rows="2"></textarea></div>
+      <div class="mb-3">
+        <label class="form-label">Performed By (Worker)</label>
+        <select class="form-select" [(ngModel)]="form.performedBy">
+          <option value="" disabled>-- Select Worker --</option>
+          <option *ngFor="let w of workers" [value]="w.name">{{ w.name }} (#{{ w.userId }})</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="col mb-3"><label class="form-label">Performed At</label><input type="date" class="form-control" [(ngModel)]="form.performedAt"></div>
+        <div class="col mb-3"><label class="form-label">Cost (₹)</label><input type="number" class="form-control" [(ngModel)]="form.cost" min="0"></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" [(ngModel)]="form.status"><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="submit()" [disabled]="saving">
+        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Save
+      </button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Edit Maintenance Modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showEditModal" style="background:rgba(0,0,0,0.5)">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Edit Maintenance #{{ editForm.maintainId }}</h5><button class="btn-close" (click)="showEditModal=false"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">Asset</label>
+        <select class="form-select" [(ngModel)]="editForm.assetId">
+          <option [value]="0" disabled>-- Select an Asset --</option>
+          <option *ngFor="let a of assets" [value]="a.assetId">#{{ a.assetId }} — {{ a.name }} — {{ a.location }}</option>
+        </select>
+      </div>
+      <div class="mb-3"><label class="form-label">Task Description</label><textarea class="form-control" [(ngModel)]="editForm.taskDescription" rows="2"></textarea></div>
+      <div class="mb-3">
+        <label class="form-label">Performed By (Worker)</label>
+        <select class="form-select" [(ngModel)]="editForm.performedBy">
+          <option value="" disabled>-- Select Worker --</option>
+          <option *ngFor="let w of workers" [value]="w.name">{{ w.name }} (#{{ w.userId }})</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="col mb-3"><label class="form-label">Performed At</label><input type="date" class="form-control" [(ngModel)]="editForm.performedAt"></div>
+        <div class="col mb-3"><label class="form-label">Cost (₹)</label><input type="number" class="form-control" [(ngModel)]="editForm.cost" min="0"></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" [(ngModel)]="editForm.status"><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="showEditModal=false">Cancel</button>
+      <button class="btn btn-primary" (click)="saveEdit()" [disabled]="savingEdit">
+        <span *ngIf="savingEdit" class="spinner-border spinner-border-sm me-1"></span>Save
+      </button>
+    </div>
+  </div></div>
+</div>
