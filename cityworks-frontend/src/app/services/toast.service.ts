@@ -18,19 +18,11 @@ export class ToastService {
   }
 
   dismiss(id: number) {
-    this.toasts = this.toasts.filter((t) => t.id !== id);
+    this.toasts = this.toasts.filter(t => t.id !== id);
   }
 
-  error(msg: string) {
-    this.show(msg, 'error');
-  }
-  success(msg: string) {
-    this.show(msg, 'success');
-  }
-  warning(msg: string) {
-    this.show(msg, 'warning');
-  }
-  info(msg: string) {
-    this.show(msg, 'info');
-  }
+  error(msg: string)   { this.show(msg, 'error'); }
+  success(msg: string) { this.show(msg, 'success'); }
+  warning(msg: string) { this.show(msg, 'warning'); }
+  info(msg: string)    { this.show(msg, 'info'); }
 }
