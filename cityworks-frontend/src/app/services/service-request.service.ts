@@ -16,4 +16,5 @@ export class ServiceRequestService {
   approve(id: number): Observable<any>{ return this.http.put<any>(`${API}/${id}/approve`, {}); }
   reject(id: number): Observable<any> { return this.http.put<any>(`${API}/${id}/reject`, {}); }
   delete(id: number): Observable<any> { return this.http.delete<any>(`${API}/${id}`); }
+  updateRequestStatusById(id: number, status:string): Observable<any>{ return this.http.patch<any>(`${API}/${id}/?status=${status}`,{})}
 }

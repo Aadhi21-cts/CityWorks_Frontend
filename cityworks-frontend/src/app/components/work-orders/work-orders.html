@@ -4,12 +4,18 @@
 
   <div class="card" *ngIf="!loading">
     <div class="card-body p-0">
-      <div *ngIf="items.length===0" class="text-center py-4 text-muted">No work orders found.</div>
-      <table class="table table-hover mb-0" *ngIf="items.length>0">
+      <div *ngIf="items.length === 0" class="text-center py-4 text-muted">
+        No work orders found.
+      </div>
+      <table class="table table-hover mb-0" *ngIf="items.length > 0">
         <thead>
           <tr>
-            <th>ID</th><th>Request ID</th><th>Asset ID</th><th>Assigned Worker</th><th>Status</th>
-            <th *ngIf="auth.hasRole('SUPERVISOR','ADMIN')">Actions</th>
+            <th>ID</th>
+            <th>Request ID</th>
+            <th>Asset ID</th>
+            <th>Assigned Worker</th>
+            <th>Status</th>
+            <th *ngIf="auth.hasRole('SUPERVISOR')">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -23,22 +29,44 @@
                 <span *ngIf="!w.assignedWorkerId" class="text-muted">Unassigned</span>
               </td>
               <td>
-                <button class="btn btn-sm" [class]="statusClass(w.status)"
-                  style="cursor:pointer;border:none;font-size:0.75rem;padding:0.3em 0.7em;border-radius:0.375rem;"
-                  *ngIf="auth.hasRole('SUPERVISOR')" (click)="toggleInlineStatus(w)">
-                  {{ w.status }}<i class="bi bi-chevron-down ms-1" style="font-size:0.65rem"></i>
+                <button
+                  class="btn btn-sm"
+                  [class]="statusClass(w.status)"
+                  style="
+                    cursor: pointer;
+                    border: none;
+                    font-size: 0.75rem;
+                    padding: 0.3em 0.7em;
+                    border-radius: 0.375rem;
+                  "
+                  *ngIf="auth.hasRole('SUPERVISOR')"
+                  (click)="toggleInlineStatus(w)"
+                >
+                  {{ w.status }}<i class="bi bi-chevron-down ms-1" style="font-size: 0.65rem"></i>
                 </button>
-                <span [class]="statusClass(w.status)" *ngIf="!auth.hasRole('SUPERVISOR')">{{ w.status }}</span>
+                <span [class]="statusClass(w.status)" *ngIf="!auth.hasRole('SUPERVISOR')">{{
+                  w.status
+                }}</span>
               </td>
-              <td *ngIf="auth.hasRole('SUPERVISOR','ADMIN')">
-                <button class="btn btn-sm btn-outline-primary me-1"
-                  *ngIf="auth.hasRole('SUPERVISOR') && (w.status==='CREATED' || w.status==='NEW' || w.status==='OPEN' || !w.assignedWorkerId)"
-                  (click)="openAssign(w)">
+              <td *ngIf="auth.hasRole('SUPERVISOR', 'ADMIN')">
+                <button
+                  class="btn btn-sm btn-outline-primary me-1"
+                  *ngIf="
+                    auth.hasRole('SUPERVISOR') &&
+                    (w.status === 'CREATED' ||
+                      w.status === 'NEW' ||
+                      w.status === 'OPEN' ||
+                      !w.assignedWorkerId)
+                  "
+                  (click)="openAssign(w)"
+                >
                   <i class="bi bi-person-check me-1"></i>Assign
                 </button>
-                <button class="btn btn-sm btn-outline-secondary"
+                <button
+                  class="btn btn-sm btn-outline-secondary"
                   *ngIf="auth.hasRole('SUPERVISOR') && w.assignedWorkerId"
-                  (click)="openEditWorker(w)">
+                  (click)="openEditWorker(w)"
+                >
                   <i class="bi bi-pencil me-1"></i>Edit Worker
                 </button>
               </td>
@@ -46,42 +74,95 @@
 
             <!-- Inline status + evidence panel (SUPERVISOR only) -->
             <tr *ngIf="showInlineStatusForm[w.workOrderId]">
-              <td colspan="6" style="background:#f8f9fa;padding:1rem 1.5rem;">
+              <td colspan="6" style="background: #f8f9fa; padding: 1rem 1.5rem">
                 <div class="mb-3">
-                  <div class="fw-600 mb-2" style="font-size:0.85rem;color:#495057;">
-                    <i class="bi bi-camera me-1 text-amber"></i>Completion Evidence for Work Order #{{ w.workOrderId }}
+                  <div class="fw-600 mb-2" style="font-size: 0.85rem; color: #495057">
+                    <i class="bi bi-camera me-1 text-amber"></i>Completion Evidence for Work Order
+                    #{{ w.workOrderId }}
                   </div>
-                  <div *ngIf="evidenceLoading" class="text-muted" style="font-size:0.8rem;">Loading evidence...</div>
-                  <div *ngIf="!evidenceLoading && (evidenceByOrder[w.workOrderId]?.length ?? 0)===0" class="text-muted" style="font-size:0.8rem;">No evidence uploaded for this work order.</div>
-                  <table class="table table-sm mb-0" *ngIf="(evidenceByOrder[w.workOrderId]?.length ?? 0)>0">
-                    <thead><tr><th>Evidence ID</th><th>File URI</th><th>Uploaded At</th><th>Status</th></tr></thead>
+                  <div *ngIf="evidenceLoading" class="text-muted" style="font-size: 0.8rem">
+                    Loading evidence...
+                  </div>
+                  <div
+                    *ngIf="!evidenceLoading && (evidenceByOrder[w.workOrderId]?.length ?? 0) === 0"
+                    class="text-muted"
+                    style="font-size: 0.8rem"
+                  >
+                    No evidence uploaded for this work order.
+                  </div>
+                  <table
+                    class="table table-sm mb-0"
+                    *ngIf="(evidenceByOrder[w.workOrderId]?.length ?? 0) > 0"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Evidence ID</th>
+                        <th>File URI</th>
+                        <th>Uploaded At</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       <tr *ngFor="let e of evidenceByOrder[w.workOrderId]">
                         <td>#{{ e.evidenceId }}</td>
-                        <td><a [href]="e.fileURI" target="_blank" class="text-amber">{{ e.fileURI | slice:0:50 }}</a></td>
-                        <td>{{ e.uploadedAt | slice:0:10 }}</td>
-                        <td><span [class]="e.status==='VERIFIED'||e.status==='APPROVED' ? 'badge-completed' : 'badge-pending'">{{ e.status }}</span></td>
+                        <td>
+                          <a [href]="e.fileURI" target="_blank" class="text-amber">{{
+                            e.fileURI | slice: 0 : 50
+                          }}</a>
+                        </td>
+                        <td>{{ e.uploadedAt | slice: 0 : 10 }}</td>
+                        <td>
+                          <span
+                            [class]="
+                              e.status === 'VERIFIED' || e.status === 'APPROVED'
+                                ? 'badge-completed'
+                                : 'badge-pending'
+                            "
+                            >{{ e.status }}</span
+                          >
+                        </td>
                       </tr>
                     </tbody>
                   </table>
-                  <div *ngIf="!evidenceLoading && (evidenceByOrder[w.workOrderId]?.length ?? 0)>0 && !canCompleteOrder(w.workOrderId)"
-                       class="alert alert-warning mt-2 py-1 px-2" style="font-size:0.8rem;">
-                    <i class="bi bi-exclamation-triangle me-1"></i>All evidence must be VERIFIED before marking as Completed.
+                  <div
+                    *ngIf="
+                      !evidenceLoading &&
+                      (evidenceByOrder[w.workOrderId]?.length ?? 0) > 0 &&
+                      !canCompleteOrder(w.workOrderId)
+                    "
+                    class="alert alert-warning mt-2 py-1 px-2"
+                    style="font-size: 0.8rem"
+                  >
+                    <i class="bi bi-exclamation-triangle me-1"></i>All evidence must be VERIFIED
+                    before marking as Completed.
                   </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                  <label class="form-label mb-0" style="font-size:0.85rem;">Update Status:</label>
-                  <select class="form-select form-select-sm" style="width:auto" [(ngModel)]="inlineStatusForm[w.workOrderId]">
+                  <label class="form-label mb-0" style="font-size: 0.85rem">Update Status:</label>
+                  <select
+                    class="form-select form-select-sm"
+                    style="width: auto"
+                    [(ngModel)]="inlineStatusForm[w.workOrderId]"
+                  >
                     <option value="ASSIGNED">ASSIGNED</option>
                     <option value="IN_PROGRESS">IN_PROGRESS</option>
                     <option value="ON_HOLD">ON_HOLD</option>
                     <option value="COMPLETED">COMPLETED</option>
                     <option value="CANCELLED">CANCELLED</option>
                   </select>
-                  <button class="btn btn-sm btn-primary" (click)="updateInlineStatus(w)" [disabled]="saving">
+                  <button
+                    class="btn btn-sm btn-primary"
+                    (click)="updateInlineStatus(w)"
+                    [disabled]="saving"
+                  >
                     <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Save
                   </button>
-                  <button class="btn btn-sm btn-outline-secondary" (click)="showInlineStatusForm[w.workOrderId]=false">Cancel</button>
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    (click)="showInlineStatusForm[w.workOrderId] = false"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </td>
             </tr>
@@ -93,53 +174,93 @@
 </div>
 
 <!-- Assign Worker Modal -->
-<div class="modal d-block" tabindex="-1" *ngIf="showAssignModal" style="background:rgba(0,0,0,0.5)">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Assign Worker — Work Order #{{ assignForm.orderId }}</h5><button class="btn-close" (click)="showAssignModal=false"></button></div>
-    <div class="modal-body">
-      <div class="mb-3">
-        <label class="form-label">Select Worker <span class="text-danger">*</span></label>
-        <select class="form-select" [(ngModel)]="assignForm.workerId" [class.is-invalid]="assignForm.workerId===0">
-          <option [value]="0" disabled>-- Select a Worker --</option>
-          <option *ngFor="let w of workers" [value]="w.userId">{{ w.name }} (#{{ w.userId }})</option>
-        </select>
-        <div class="invalid-feedback">Please select a worker.</div>
+<div
+  class="modal d-block"
+  tabindex="-1"
+  *ngIf="showAssignModal"
+  style="background: rgba(0, 0, 0, 0.5)"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Assign Worker — Work Order #{{ assignForm.orderId }}</h5>
+        <button class="btn-close" (click)="showAssignModal = false"></button>
       </div>
-      <div class="mb-3">
-        <label class="form-label">Set Status</label>
-        <select class="form-select" [(ngModel)]="assignForm.status">
-          <option *ngFor="let s of assignStatuses" [value]="s">{{ s }}</option>
-        </select>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Select Worker <span class="text-danger">*</span></label>
+          <select
+            class="form-select"
+            [(ngModel)]="assignForm.workerId"
+            [class.is-invalid]="assignForm.workerId === 0"
+          >
+            <option [value]="0" disabled>-- Select a Worker --</option>
+            <option *ngFor="let w of workers" [value]="w.userId">
+              {{ w.name }} (#{{ w.userId }})
+            </option>
+          </select>
+          <div class="invalid-feedback">Please select a worker.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Set Status</label>
+          <select class="form-select" [(ngModel)]="assignForm.status">
+            <option *ngFor="let s of assignStatuses" [value]="s">{{ s }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showAssignModal = false">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="assign()"
+          [disabled]="saving || assignForm.workerId === 0"
+        >
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Assign
+        </button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" (click)="showAssignModal=false">Cancel</button>
-      <button class="btn btn-primary" (click)="assign()" [disabled]="saving||assignForm.workerId===0">
-        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Assign
-      </button>
-    </div>
-  </div></div>
+  </div>
 </div>
 
 <!-- Edit Worker Modal -->
-<div class="modal d-block" tabindex="-1" *ngIf="showEditWorkerModal" style="background:rgba(0,0,0,0.5)">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Change Worker — Work Order #{{ editWorkerForm.orderId }}</h5><button class="btn-close" (click)="showEditWorkerModal=false"></button></div>
-    <div class="modal-body">
-      <div class="mb-3">
-        <label class="form-label">Select New Worker <span class="text-danger">*</span></label>
-        <select class="form-select" [(ngModel)]="editWorkerForm.workerId" [class.is-invalid]="editWorkerForm.workerId===0">
-          <option [value]="0" disabled>-- Select a Worker --</option>
-          <option *ngFor="let w of workers" [value]="w.userId">{{ w.name }} (#{{ w.userId }})</option>
-        </select>
-        <div class="invalid-feedback">Please select a worker.</div>
+<div
+  class="modal d-block"
+  tabindex="-1"
+  *ngIf="showEditWorkerModal"
+  style="background: rgba(0, 0, 0, 0.5)"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Change Worker — Work Order #{{ editWorkerForm.orderId }}</h5>
+        <button class="btn-close" (click)="showEditWorkerModal = false"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Select New Worker <span class="text-danger">*</span></label>
+          <select
+            class="form-select"
+            [(ngModel)]="editWorkerForm.workerId"
+            [class.is-invalid]="editWorkerForm.workerId === 0"
+          >
+            <option [value]="0" disabled>-- Select a Worker --</option>
+            <option *ngFor="let w of workers" [value]="w.userId">
+              {{ w.name }} (#{{ w.userId }})
+            </option>
+          </select>
+          <div class="invalid-feedback">Please select a worker.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showEditWorkerModal = false">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="editWorker()"
+          [disabled]="saving || editWorkerForm.workerId === 0"
+        >
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Update
+        </button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" (click)="showEditWorkerModal=false">Cancel</button>
-      <button class="btn btn-primary" (click)="editWorker()" [disabled]="saving||editWorkerForm.workerId===0">
-        <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>Update
-      </button>
-    </div>
-  </div></div>
+  </div>
 </div>

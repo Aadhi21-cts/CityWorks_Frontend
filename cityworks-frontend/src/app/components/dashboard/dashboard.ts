@@ -10,6 +10,7 @@ import { WorkOrderService } from '../../services/work-order.service';
 import { AssetService } from '../../services/asset.service';
 import { TaskService } from '../../services/task.service';
 import { ToastService } from '../../services/toast.service';
+import { AuditLogService } from '../../services/audit-log.service';
 
 const BASE = 'http://localhost:7171/api/auth';
 
@@ -57,6 +58,7 @@ export class Dashboard implements OnInit {
     public auth: AuthService, private requestSvc: ServiceRequestService,
     private workOrderSvc: WorkOrderService, private assetSvc: AssetService,
     private taskSvc: TaskService, private http: HttpClient, private toast: ToastService,
+    private auditSvc: AuditLogService
   ) {}
 
   ngOnInit() {
@@ -117,19 +119,11 @@ export class Dashboard implements OnInit {
     });
   }
 
-  openEditUser(user: any) {
-    this.editUserForm = { id: user.userId, name: user.name, email: user.email, username: user.username, role: user.role };
-    this.showEditUserModal = true;
-  }
-
   saveEditUser() {
     if (!this.editUserForm.name.trim() || !this.editUserForm.email.trim()) { this.toast.warning('Name and email are required.'); return; }
     this.savingEditUser = true;
     this.http.put<any>(`${BASE}/users/${this.editUserForm.id}`, this.editUserForm).subscribe({
       next: (r) => {
-        const updated = r.data ?? r;
-        const idx = this.users.findIndex(u => u.userId === this.editUserForm.id);
-        if (idx !== -1) { this.users[idx] = { ...this.users[idx], ...updated }; this.users = [...this.users]; }
         this.savingEditUser = false; this.showEditUserModal = false; this.toast.success('User updated successfully.');
       },
       error: (err) => { this.savingEditUser = false; this.toast.error(extractError(err)); },
@@ -181,7 +175,7 @@ export class Dashboard implements OnInit {
 
   loadAuditorDashboard() {
     this.loading = true;
-    this.http.get<any>(`${BASE}/audit-logs/all`).subscribe({
+    this.auditSvc.getAll().subscribe({
       next: (r) => { const d = r.data ?? r; this.totalAuditLogs = d.length; this.recentAuditLogs = d.slice(0, 10); this.loading = false; },
       error: (err) => { this.loading = false; this.toast.error(extractError(err)); },
     });

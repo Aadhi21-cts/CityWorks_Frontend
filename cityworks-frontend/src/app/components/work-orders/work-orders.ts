@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { WorkOrderService } from '../../services/work-order.service';
 import { EvidenceService } from '../../services/evidence.service';
 import { ToastService } from '../../services/toast.service';
+import { ServiceRequestService } from '../../services/service-request.service';
 
 const BASE = 'http://localhost:7171/api';
 
@@ -56,11 +57,12 @@ export class WorkOrders implements OnInit {
     private evidenceSvc: EvidenceService,
     private http: HttpClient,
     private toast: ToastService,
+    private requestSvc: ServiceRequestService,
   ) {}
 
   ngOnInit() {
     this.load();
-    if (this.auth.hasRole('SUPERVISOR', 'ADMIN')) this.loadWorkers();
+    if (this.auth.hasRole('SUPERVISOR')) this.loadWorkers();
   }
 
   load() {
@@ -203,7 +205,23 @@ export class WorkOrders implements OnInit {
       next: () => {
         this.saving = false;
         this.showInlineStatusForm[id] = false;
-        this.load();
+        if (newStatus === 'COMPLETED'){
+          let requestId = 0;
+          this.svc.getById(id).subscribe({
+            next: (order) => {let workOrder = order.data;
+              requestId = workOrder.requestId;
+              this.requestSvc.updateRequestStatusById(requestId, newStatus).subscribe({
+                next: () => {
+                  console.log('Status updated successfully');
+                },
+                error: (err) => {
+                  console.error('Update failed', err);
+                },
+              });
+            },
+          });
+          
+        } this.load();
         this.toast.success('Status updated successfully.');
       },
       error: (err) => {

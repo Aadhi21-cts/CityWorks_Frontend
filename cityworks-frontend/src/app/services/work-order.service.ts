@@ -17,4 +17,7 @@ export class WorkOrderService {
   updateStatus(orderId: number, status: string): Observable<any> {
     return this.http.put<any>(`${API}/${orderId}/status?status=${status}`, {});
   }
+  getByRequestId(requestId:number): Observable<any>{
+    return this.http.get<any>(`${API}/requestId?requestId=${requestId}`);
+  }
 }

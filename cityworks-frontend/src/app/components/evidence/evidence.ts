@@ -132,8 +132,10 @@ export class Evidence implements OnInit {
     }
     this.saving = true;
     const localUrl = URL.createObjectURL(this.uploadForm.file);
+    
+    const task = this.myTasks.find((t) => t.taskId === +this.uploadForm.taskId);
     this.svc
-      .create({ taskId: this.uploadForm.taskId, fileURI: localUrl, status: 'UPLOADED' })
+      .create({ taskId: this.uploadForm.taskId, fileURI: localUrl, status: 'UPLOADED', workOrderId: task.workOrderId})
       .subscribe({
         next: () => {
           this.saving = false;

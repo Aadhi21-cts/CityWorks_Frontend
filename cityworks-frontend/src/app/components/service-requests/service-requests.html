@@ -30,6 +30,11 @@
                 (click)="reject(r.requestId)">
                 <i class="bi bi-x-circle me-1"></i>Reject
               </button>
+              <button class="btn btn-sm btn-outline-warning me-1"
+                *ngIf="(r.status==='COMPLETED' && auth.hasRole('SUPERVISOR'))"
+                (click)="resolve(r.requestId)">
+                <i class="bi bi-check-circle me-1"></i>Resolve
+              </button>
               <button class="btn btn-sm btn-outline-danger" *ngIf="auth.hasRole('ADMIN')" (click)="delete(r.requestId)">
                 <i class="bi bi-trash"></i>
               </button>
