@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
-import { NgIf, NgFor, SlicePipe } from '@angular/common';
+import { SlicePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { AuditLogService } from '../../services/audit-log.service';
 
 @Component({
   selector: 'app-audit-logs',
-  imports: [NgIf, NgFor, FormsModule, SlicePipe],
+  imports: [CommonModule, FormsModule, SlicePipe],
   templateUrl: './audit-logs.html',
   styleUrl: './audit-logs.css'
 })

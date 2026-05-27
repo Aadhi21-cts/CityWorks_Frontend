@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../services/auth.service';
@@ -10,12 +10,16 @@ import { AuthService } from '../../../services/auth.service';
   styleUrl: './sidebar.css',
 })
 export class Sidebar {
-  constructor(
-    public auth: AuthService,
-    private router: Router,
-  ) {}
+  isOpen = false;
 
+  constructor(public auth: AuthService, private router: Router) {}
+
+  toggle() { this.isOpen = !this.isOpen; }
+  close()  { this.isOpen = false; }
+
+  // Close sidebar on route change (mobile)
   logout() {
+    this.isOpen = false;
     this.auth.logout();
     this.router.navigate(['/login']);
   }
@@ -23,4 +27,8 @@ export class Sidebar {
   is(...roles: string[]): boolean {
     return this.auth.hasRole(...roles);
   }
+
+  // Close on Escape key
+  @HostListener('document:keydown.escape')
+  onEscape() { this.isOpen = false; }
 }

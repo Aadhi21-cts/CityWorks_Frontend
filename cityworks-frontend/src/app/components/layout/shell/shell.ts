@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Sidebar } from '../sidebar/sidebar';
 import { ToastComponent } from '../../toast/toast';
@@ -10,4 +10,7 @@ import { ToastComponent } from '../../toast/toast';
   templateUrl: './shell.html',
   styleUrl: './shell.css'
 })
-export class Shell {}
+export class Shell {
+  @ViewChild(Sidebar) sidebar!: Sidebar;
+  toggleSidebar() { this.sidebar.toggle(); }
+}
